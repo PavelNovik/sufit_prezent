@@ -1,0 +1,327 @@
+/* ===== Визуализатор: фото + плоскость потолка в перспективе ===== */
+.viewer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #0a0c0f;
+  user-select: none;
+  -webkit-user-select: none;
+  contain: layout paint;
+}
+.viewer__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.stage__base {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  transition: filter 0.6s var(--ease);
+}
+.stage__photo,
+.stage__shade,
+.stage__svg,
+.stage__emit,
+.stage__before,
+.stage__tint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  pointer-events: none;
+}
+.stage__shade {
+  mix-blend-mode: multiply;
+}
+.stage__tint {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+.stage__emit {
+  mix-blend-mode: screen;
+  animation: lights-on 0.7s var(--ease);
+}
+@keyframes lights-on {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Плоскость потолка: 1 px = 5 мм, matrix3d задаёт перспективу */
+.plane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.plane > * {
+  position: absolute;
+}
+.plane--emit {
+  mix-blend-mode: screen;
+  animation: lights-on 0.7s var(--ease);
+}
+.plane__fabric {
+  inset: 0;
+  overflow: hidden;
+  transition: background-color 0.45s var(--ease);
+}
+.plane__fabric > * {
+  position: absolute;
+  inset: 0;
+}
+.plane__print {
+  background-size: cover;
+  background-position: center;
+}
+.plane__sheen {
+  background:
+    radial-gradient(60% 45% at 50% 30%, rgba(255, 255, 255, 0.95), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 60%);
+  mix-blend-mode: screen;
+}
+.plane__grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+.plane__stars {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.twinkle {
+  animation: twinkle 2.6s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  to {
+    opacity: 0.15;
+  }
+}
+
+/* ---------- Профили (вдоль всех стен) ---------- */
+.profile {
+  inset: 0;
+}
+.profile--standard {
+  box-shadow:
+    inset 0 0 0 3px #ecebe6,
+    inset 0 0 0 4px rgba(0, 0, 0, 0.28),
+    inset 0 0 4px 4px rgba(0, 0, 0, 0.1);
+}
+.profile--shadowStandard {
+  box-shadow:
+    inset 0 0 0 2px rgba(16, 16, 18, 0.8),
+    inset 0 0 6px 3px rgba(0, 0, 0, 0.25);
+}
+.profile--eurokraab {
+  box-shadow:
+    inset 0 0 0 2px #09090a,
+    inset 0 0 0 3px rgba(255, 255, 255, 0.4),
+    inset 0 0 3px 3px rgba(0, 0, 0, 0.16);
+}
+.profile--floating {
+  box-shadow:
+    inset 0 0 0 2px rgba(16, 16, 18, 0.65),
+    inset 0 0 0 5px #fbf7ee,
+    inset 0 0 14px 7px rgba(255, 244, 222, 0.5);
+}
+
+/* ---------- Светильники (днём — выключены) ---------- */
+.spot {
+  border-radius: 50%;
+  background: #f4f3ef;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.16);
+}
+.spot i {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 40%, #fbfbf9, #bab8b2 58%, #8c8a85);
+}
+.spot--square,
+.spot--square i {
+  border-radius: 9%;
+}
+.spot--prem-black {
+  background: #151515;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.spot--prem-black i {
+  inset: 26%;
+  background: radial-gradient(circle at 45% 42%, #5a5a5a, #1a1a1a 55%, #050505);
+}
+.spot--prem-white i {
+  inset: 24%;
+  background: radial-gradient(circle at 45% 42%, #8a8883, #34332f 55%, #121211);
+}
+.spot--prem-gold {
+  background: linear-gradient(135deg, #f3d692, #b8892c);
+}
+.spot--prem-gold i {
+  inset: 24%;
+  background: radial-gradient(circle at 45% 42%, #6b6b6b, #1b1b1b 55%, #070707);
+}
+.plafond {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #ffffff, #f1efe9 58%, #d3d0c7);
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.16);
+}
+.led {
+  background: #fbfbf9;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+.track {
+  background: #141414;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.track-spot {
+  border-radius: 50%;
+  background: radial-gradient(circle, #4b4b4b 0 30%, #171717 33%);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.4);
+}
+.track-line {
+  background: #151515;
+  border-radius: 3px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.35);
+}
+.track-line::after {
+  content: '';
+  position: absolute;
+  inset: 8% 28%;
+  border-radius: 2px;
+  background: #e9e8e3;
+}
+
+/* ---------- Карниз ---------- */
+.curtain-rail {
+  background: linear-gradient(90deg, #f3f3f1, #cdccc7);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.22),
+    0 4px 8px rgba(0, 0, 0, 0.22);
+}
+.curtain-niche--left {
+  background: linear-gradient(90deg, #0b0b0b, #232323 70%, #3b3b39);
+  box-shadow: inset -3px 0 0 rgba(255, 255, 255, 0.5);
+}
+.curtain-niche--right {
+  background: linear-gradient(270deg, #0b0b0b, #232323 70%, #3b3b39);
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.5);
+}
+.curtain-niche--back {
+  background: linear-gradient(180deg, #0b0b0b, #232323 70%, #3b3b39);
+  box-shadow: inset 0 -3px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ---------- Свечение (вечер) ---------- */
+.emit-spot {
+  border-radius: 50%;
+  background: var(--core);
+  box-shadow:
+    0 0 6px 3px rgba(var(--glow), 0.95),
+    0 0 18px 9px rgba(var(--glow), 0.45);
+}
+.emit-spot.is-square {
+  border-radius: 10%;
+}
+.emit-line {
+  background: var(--core);
+  border-radius: 3px;
+  box-shadow: 0 0 8px 3px rgba(var(--glow), 0.8);
+}
+.emit-led {
+  background: var(--core);
+  border-radius: 3px;
+  box-shadow:
+    0 0 6px 2px rgba(var(--glow), 0.95),
+    0 0 26px 12px rgba(var(--glow), 0.45);
+}
+.emit-plafond {
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 55%, rgba(var(--glow), 0.9) 75%, rgba(var(--glow), 0) 100%);
+  box-shadow: 0 0 50px 26px rgba(var(--glow), 0.45);
+}
+.emit-profile {
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 5px var(--core),
+    inset 0 0 26px 12px rgba(var(--glow), 0.75);
+}
+.emit-niche--left {
+  background: linear-gradient(90deg, rgba(var(--glow), 0.95), rgba(var(--glow), 0.25) 75%, transparent);
+}
+.emit-niche--right {
+  background: linear-gradient(270deg, rgba(var(--glow), 0.95), rgba(var(--glow), 0.25) 75%, transparent);
+}
+.emit-niche--back {
+  background: linear-gradient(180deg, rgba(var(--glow), 0.95), rgba(var(--glow), 0.25) 75%, transparent);
+}
+
+/* ---------- Przed / Po ---------- */
+.stage__before {
+  z-index: 3;
+}
+.compare {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+  pointer-events: none;
+}
+.compare__handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 0;
+  background: var(--gold-grad);
+  color: #15110a;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  cursor: ew-resize;
+  touch-action: none;
+  pointer-events: auto;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.compare__label {
+  position: absolute;
+  top: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(14, 17, 21, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.compare__label--l {
+  right: 12px;
+}
+.compare__label--r {
+  left: 12px;
+  color: var(--gold-light);
+}

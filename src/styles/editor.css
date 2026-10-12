@@ -1,0 +1,87 @@
+/* Редактор разметки сцен (/?editor) — служебный экран */
+.editor {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  min-height: 100vh;
+  font-size: 14px;
+}
+.editor__side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  overflow-y: auto;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+}
+.editor__side h1 {
+  font-size: 24px;
+}
+.editor__side label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.editor__side label.inline {
+  flex-direction: row;
+  align-items: center;
+  display: inline-flex;
+  margin-right: 12px;
+}
+.editor__side fieldset {
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.editor__side input[type='number'] {
+  width: 64px;
+}
+.editor__side input,
+.editor__side select,
+.editor__side textarea,
+.editor__side button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.editor__side button {
+  cursor: pointer;
+}
+.editor__side button:hover {
+  border-color: var(--gold);
+}
+.editor__side textarea {
+  font: 12px/1.4 ui-monospace, Consolas, monospace;
+}
+.editor__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.editor__main {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.editor__svg {
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  touch-action: none;
+  border-radius: 8px;
+}
+.editor__hint {
+  color: var(--muted);
+  font-size: 13px;
+}

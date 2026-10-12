@@ -1,0 +1,23 @@
+{
+  "name": "sufitowski-wizualizator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-server && node scripts/prerender.js",
+    "preview": "vite preview",
+    "images": "node scripts/fetch-images.js"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/playfair-display": "^5.2.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.2.0",
+    "sharp": "^0.35.5",
+    "vite": "^7.3.6"
+  }
+}
