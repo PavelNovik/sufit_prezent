@@ -8,6 +8,12 @@ export const rooms = {
   sypialnia: 'photo-1595526114035-0d45ed16cfbf',
   lazienka: 'photo-1613849925594-415a32298f54',
   korytarz: 'photo-1723257135853-75f98a13b944',
+  // альтернативные ракурсы (вариант без окна / другой план)
+  'salon-3': 'photo-1628745750131-e5cfc5e70ced',
+  'kuchnia-2': 'photo-1639173925921-5d5fd027713c',
+  'sypialnia-2': 'photo-1760072513376-67a46aab0fd1',
+  'lazienka-2': 'photo-1721394745970-aba71c96836d',
+  'korytarz-2': 'photo-1721743163186-02c9292bada6',
 }
 
 // Текстуры для «Nadruk» (фотопечать на полотне)

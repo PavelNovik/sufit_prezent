@@ -4,6 +4,13 @@
 
 export const materials = [
   {
+    id: 'none',
+    name: 'Obecny sufit',
+    photo: null,
+    text: 'Zdjęcie bez zmian. Wybierz płótno, aby zobaczyć nowy sufit.',
+    colors: false,
+  },
+  {
     id: 'matte',
     name: 'Mat',
     photo: 2,
@@ -70,6 +77,7 @@ export const prints = [
 ]
 
 export const profiles = [
+  { id: 'none', name: 'Brak', photo: null, text: 'Bez podglądu profilu przy ścianach.' },
   {
     id: 'standard',
     name: 'Standard',

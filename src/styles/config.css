@@ -484,18 +484,19 @@
   object-fit: cover;
 }
 .room span {
-  display: flex;
-  flex-direction: column;
   padding: 8px 10px 10px;
+  font-size: 13px;
+  color: var(--fg-2);
 }
-.room b {
-  font-weight: 600;
-  font-size: 14px;
+.room[aria-pressed='true'] span {
+  color: var(--gold-light);
 }
-.room em {
-  font-style: normal;
-  font-size: 12px;
-  color: var(--muted);
+.room-group + .room-group {
+  margin-top: 18px;
+}
+.room-group h4 {
+  margin-bottom: 10px;
+  font: 500 18px var(--font-display);
 }
 .room[aria-pressed='true'] {
   border-color: var(--gold);

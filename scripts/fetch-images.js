@@ -9,6 +9,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 import { rooms, textures } from './images.js'
+import { scenes } from '../src/data/scenes.js'
 
 const pub = path.resolve('public')
 const raw = path.resolve('raw')
@@ -33,13 +34,59 @@ const unsplash = (photo, w) =>
   download(`https://images.unsplash.com/${photo}?w=${w}&q=90&fm=jpg`, path.join(raw, 'unsplash', `${photo}-${w}.jpg`))
 const site = (file) => download(`https://sufitowski.pl/${file}`, path.join(raw, 'site', file))
 
+// Выравнивание освещения стен: убирает световые пятна («веера») от старых спотов, которых после замены
+// потолка на фото уже нет. Каждый полигон (стена) обрабатывается отдельно: каждый канал делится на свою
+// размытую версию (низкие частоты — пятна света и их тёплый оттенок) и приводится к медиане стены.
+// Фактура и мелкие детали остаются.
+async function flattenWalls(buf, polys) {
+  const { data, info } = await sharp(buf).removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width: w, height: h } = info
+  const n = w * h
+  const raw1 = { raw: { width: w, height: h, channels: 1 } }
+  const blur = (b, s) => sharp(b, raw1).blur(s).extractChannel(0).raw().toBuffer()
+  const out = Buffer.from(data)
+  for (const poly of polys) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><polygon points="${poly.map((q) => q.join(',')).join(' ')}" fill="#fff"/></svg>`
+    const mask = await sharp(Buffer.from(svg)).extractChannel(0).raw().toBuffer()
+    const [feather, bm] = await Promise.all([blur(mask, 6), blur(mask, 28)])
+    const ch = []
+    for (let c = 0; c < 3; c++) {
+      const cm = Buffer.alloc(n)
+      const vals = []
+      for (let i = 0; i < n; i++)
+        if (mask[i] > 127) {
+          cm[i] = out[i * 3 + c]
+          vals.push(cm[i])
+        }
+      vals.sort((a, b) => a - b)
+      ch.push({ bl: await blur(cm, 28), target: vals[Math.floor(vals.length * 0.4)] })
+    }
+    for (let i = 0; i < n; i++) {
+      const f = feather[i] / 255
+      if (f < 0.01 || bm[i] < 8) continue
+      for (let c = 0; c < 3; c++) {
+        const base = (ch[c].bl[i] / bm[i]) * 255
+        const k = Math.min(1.2, Math.max(0.5, ch[c].target / Math.max(1, base)))
+        out[i * 3 + c] = Math.max(0, Math.min(255, Math.round(out[i * 3 + c] * (1 + (k - 1) * f))))
+      }
+    }
+  }
+  return sharp(out, { raw: { width: w, height: h, channels: 3 } })
+}
+
 // 1) Комнаты
 for (const [id, photo] of Object.entries(rooms)) {
   const buf = await unsplash(photo, 2000)
-  const out = sharp(buf).resize({ width: 1600 })
-  const { height } = await out.clone().webp({ quality: 84 }).toFile(path.join(pub, 'rooms', `${id}.webp`))
+  const resized = await sharp(buf).resize({ width: 1600 }).png().toBuffer()
+  const scene = scenes.find((s) => s.id === id)
+  let img = sharp(resized)
+  if (scene?.flatten?.length) {
+    await sharp(resized).webp({ quality: 84 }).toFile(path.join(pub, 'rooms', `${id}-orig.webp`))
+    img = await flattenWalls(resized, scene.flatten)
+  }
+  const { height } = await img.webp({ quality: 84 }).toFile(path.join(pub, 'rooms', `${id}.webp`))
   await sharp(buf).resize(480, 320, { fit: 'cover' }).webp({ quality: 74 }).toFile(path.join(pub, 'rooms', `${id}-sm.webp`))
-  console.log(`  room ${id}  1600×${height}`)
+  console.log(`  room ${id}  1600×${height}${scene?.flatten?.length ? '  (стены выровнены)' : ''}`)
 }
 
 // 2) Текстуры фотопечати (квадрат — ложатся на плоскость потолка)

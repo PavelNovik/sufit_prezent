@@ -4,12 +4,12 @@ import { materials, colors, prints, profiles, curtains, spotTypes, spotStyles, s
 
 export const defaults = {
   scene: 'salon-1',
-  material: 'matte',
+  material: 'none',
   color: 'white',
   print: 'niebo-liscie',
-  profile: 'shadowStandard',
+  profile: 'none',
   curtain: 'none',
-  spot: 'spotStd',
+  spot: 'none',
   spotStyle: 'round',
   spotCount: 6,
   lamp: 'none',
@@ -54,8 +54,15 @@ export function toQuery(cfg) {
   return s ? `?${s}` : ''
 }
 
-// Стиль спота должен соответствовать типу
+export const extras = ['profile', 'spot', 'lamp', 'led', 'track', 'curtain']
+
+// Стиль спота должен соответствовать типу; профиль, свет и карниз требуют полотна —
+// если полотно ещё не выбрано, включаем белый мат
 function normalize(cfg) {
+  if (cfg.material === 'none' && extras.some((k) => cfg[k] !== 'none')) {
+    cfg.material = 'matte'
+    cfg.color = 'white'
+  }
   if (cfg.spot !== 'none') {
     const list = spotStyles[cfg.spot]
     if (!list.some((s) => s.id === cfg.spotStyle)) cfg.spotStyle = list[0].id

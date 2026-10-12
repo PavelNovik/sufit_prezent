@@ -1,13 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import CeilingView from '../engine/CeilingView.jsx'
 import { layout } from '../engine/layout.js'
-import { scenes, sceneById, roomThumb } from '../data/scenes.js'
+import { scenes, roomTypes, sceneById, roomThumb } from '../data/scenes.js'
 import {
   materials, colors, prints, profiles, curtains, spotTypes, spotStyles, spotCounts, lamps, ledLayouts,
   trackLayouts, temperatures, lightInfo, byId, catalogPhoto,
 } from '../data/catalog.js'
 import { brand, tel } from '../config.js'
-import { toQuery } from '../state/useConfig.js'
+import { toQuery, extras } from '../state/useConfig.js'
 import Icon from './Icon.jsx'
 
 const steps = [
@@ -156,18 +156,22 @@ function Chips({ label, items, value, onChange, render }) {
 function RoomStep({ cfg, set }) {
   return (
     <>
-      <StepHead title="Wybierz pomieszczenie" text="Na zdjęciu wnętrza pokażemy, jak będzie wyglądał nowy sufit. Wszystkie opcje możesz potem zmieniać w dowolnej kolejności." />
-      <div className="rooms">
-        {scenes.map((s) => (
-          <button key={s.id} type="button" className="room" aria-pressed={cfg.scene === s.id} onClick={() => set({ scene: s.id })}>
-            <img src={roomThumb(s.id)} alt="" width="240" height="160" loading="lazy" />
-            <span>
-              <b>{s.name}</b>
-              <em>{s.variant}</em>
-            </span>
-          </button>
-        ))}
-      </div>
+      <StepHead title="Wybierz pomieszczenie" text="Zacznij od wnętrza — każde pomieszczenie ma kilka ujęć (z oknem i bez). Potem dobierzesz płótno, profil, oświetlenie i karnisz." />
+      {roomTypes.map((t) => (
+        <section key={t.id} className="room-group">
+          <h4>{t.name}</h4>
+          <div className="rooms">
+            {scenes
+              .filter((s) => s.type === t.id)
+              .map((s) => (
+                <button key={s.id} type="button" className="room" aria-pressed={cfg.scene === s.id} onClick={() => set({ scene: s.id })}>
+                  <img src={roomThumb(s.id)} alt="" width="240" height="160" loading="lazy" />
+                  <span>{s.variant}</span>
+                </button>
+              ))}
+          </div>
+        </section>
+      ))}
     </>
   )
 }
@@ -176,10 +180,10 @@ function FabricStep({ cfg, set }) {
   const mat = byId(materials, cfg.material)
   return (
     <>
-      <StepHead title="Płótno" text="Faktura decyduje o tym, jak sufit odbija światło. Kolor dobierzesz poniżej." />
+      <StepHead title="Płótno" text="Faktura decyduje o tym, jak sufit odbija światło. Kolor dobierzesz poniżej. „Obecny sufit” pokazuje zdjęcie bez zmian." />
       <div className="opts">
         {materials.map((m) => (
-          <OptionCard key={m.id} active={cfg.material === m.id} onClick={() => set({ material: m.id })} name={m.name} text={m.text} photo={m.photo} />
+          <OptionCard key={m.id} active={cfg.material === m.id} onClick={() => set(m.id === 'none' ? { material: 'none', ...Object.fromEntries(extras.map((k) => [k, 'none'])) } : { material: m.id })} name={m.name} text={m.text} photo={m.photo} />
         ))}
       </div>
       {mat.colors && (
@@ -330,6 +334,7 @@ function CurtainStep({ cfg, set, scene }) {
 }
 
 const fmt = (v) => v.toLocaleString('pl-PL', { maximumFractionDigits: 1 })
+const hasLight = (c) => c.spot !== 'none' || c.lamp !== 'none' || c.led !== 'none' || c.track !== 'none' || c.profile === 'floating' || c.curtain === 'hiddenLux'
 
 function Summary({ cfg, scene }) {
   const lay = useMemo(() => layout(scene, cfg), [scene, cfg])
@@ -338,13 +343,13 @@ function Summary({ cfg, scene }) {
   const [copied, setCopied] = useState(false)
   const rows = [
     ['Pomieszczenie', `${scene.name} — ${scene.variant}`, `~${fmt(q.area)} m²`],
-    ['Płótno', mat.colors ? `${mat.name} · ${byId(colors, cfg.color).name}` : cfg.material === 'photoPrint' ? `${mat.name} · ${byId(prints, cfg.print).name}` : mat.name, `${fmt(q.area)} m²`],
-    ['Profil', byId(profiles, cfg.profile).name, `~${fmt(q.perimeter)} m.b.`],
+    ['Płótno', mat.colors ? `${mat.name} · ${byId(colors, cfg.color).name}` : cfg.material === 'photoPrint' ? `${mat.name} · ${byId(prints, cfg.print).name}` : mat.name, cfg.material !== 'none' ? `${fmt(q.area)} m²` : ''],
+    ['Profil', byId(profiles, cfg.profile).name, cfg.profile !== 'none' ? `~${fmt(q.perimeter)} m.b.` : ''],
     cfg.spot !== 'none' && [byId(spotTypes, cfg.spot).name, byId(spotStyles[cfg.spot], cfg.spotStyle).name, `${q.spots} szt.`],
     cfg.lamp !== 'none' && ['Lampa', byId(lamps, cfg.lamp).name, '1 szt.'],
     cfg.led !== 'none' && [lightInfo.led.name, byId(ledLayouts, cfg.led).name, `~${fmt(q.ledMeters)} m.b.`],
     cfg.track !== 'none' && [lightInfo.track.name, byId(trackLayouts, cfg.track).name, `~${fmt(q.trackMeters)} m.b.`],
-    ['Barwa światła', `${byId(temperatures, cfg.temp).name} ${byId(temperatures, cfg.temp).k}`, ''],
+    hasLight(cfg) && ['Barwa światła', `${byId(temperatures, cfg.temp).name} ${byId(temperatures, cfg.temp).k}`, ''],
     ['Karnisz', byId(curtains, cfg.curtain).name, q.curtainMeters ? `~${fmt(q.curtainMeters)} m.b.` : ''],
   ].filter(Boolean)
 

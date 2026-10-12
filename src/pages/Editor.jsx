@@ -100,6 +100,7 @@ export default function Editor() {
     spot: 'spotStd',
     spotCount: 6,
     led: 'parallel',
+    profile: 'shadowStandard',
     curtain: 'hiddenPrem',
     lamp: 'chandPrem',
   }

@@ -3,7 +3,7 @@ import { PX, sceneGeometry, mirrorMatrix, clipToRect, pts } from './homography.j
 import { layout } from './layout.js'
 import { shadingMap } from './shading.js'
 import { byId, colors } from '../data/catalog.js'
-import { roomImage } from '../data/scenes.js'
+import { roomImage, roomOriginal } from '../data/scenes.js'
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
 
@@ -26,7 +26,7 @@ const LIGHT = {
 // Детерминированный «рандом» для звёзд
 function stars(w, h, n) {
   let s = 7
-  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647)
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
   return Array.from({ length: n }, () => ({ x: rnd() * w, y: rnd() * h, r: 0.6 + rnd() * rnd() * 2.4, a: 0.35 + rnd() * 0.65 }))
 }
 
@@ -38,6 +38,8 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
   const photo = scene.photo ?? roomImage(scene.id)
   const geo = useMemo(() => sceneGeometry(scene), [scene])
   const lay = useMemo(() => layout(scene, cfg), [scene, cfg])
+  // полотно не выбрано — показываем исходное фото без нового потолка
+  const hasCeiling = cfg.material !== 'none'
   const optics = OPTICS[cfg.material] ?? OPTICS.matte
   const fabricColor = optics.color ?? byId(colors, cfg.color).hex
   const night = cfg.mode === 'night'
@@ -85,24 +87,25 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
     front: [scene.corners[2], scene.corners[3]],
     left: [scene.corners[3], scene.corners[0]],
   }
-  const reflections = optics.reflect
-    ? (scene.reflect ?? ['back']).map((e) => {
-        const [p1, p2] = edges[e]
-        const mx = (p1[0] + p2[0]) / 2
-        const my = (p1[1] + p2[1]) / 2
-        let nx = -(p2[1] - p1[1])
-        let ny = p2[0] - p1[0]
-        const nl = Math.hypot(nx, ny)
-        nx /= nl
-        ny /= nl
-        if (nx * (centroid[0] - mx) + ny * (centroid[1] - my) < 0) {
-          nx = -nx
-          ny = -ny
-        }
-        const fade = H * 0.42
-        return { id: e, m: mirrorMatrix(p1, p2), g: [mx, my, mx + nx * fade, my + ny * fade] }
-      })
-    : []
+  const reflections =
+    hasCeiling && optics.reflect
+      ? (scene.reflect ?? ['back']).map((e) => {
+          const [p1, p2] = edges[e]
+          const mx = (p1[0] + p2[0]) / 2
+          const my = (p1[1] + p2[1]) / 2
+          let nx = -(p2[1] - p1[1])
+          let ny = p2[0] - p1[0]
+          const nl = Math.hypot(nx, ny)
+          nx /= nl
+          ny /= nl
+          if (nx * (centroid[0] - mx) + ny * (centroid[1] - my) < 0) {
+            nx = -nx
+            ny = -ny
+          }
+          const fade = H * 0.42
+          return { id: e, m: mirrorMatrix(p1, p2), g: [mx, my, mx + nx * fade, my + ny * fade] }
+        })
+      : []
 
   // ---------- сила света вечером ----------
   const q = lay.qty
@@ -168,67 +171,63 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
           <img className="stage__photo" src={photo} alt={`${scene.name} — wizualizacja sufitu napinanego`} width={W} height={H} />
 
           {/* ===== Плоскость потолка ===== */}
-          <div className="plane" style={{ width: pw, height: ph, transform: geo.matrix }}>
-            <div className="plane__fabric" style={{ background: fabricColor }}>
-              {cfg.material === 'photoPrint' && (
-                <div className="plane__print" style={{ backgroundImage: `url(/textures/${cfg.print}.webp)` }} />
-              )}
-              {optics.sheen > 0 && <div className="plane__sheen" style={{ opacity: optics.sheen }} />}
-              {optics.grain > 0 && <div className="plane__grain" style={{ opacity: optics.grain }} />}
-              {cfg.material === 'starSky' && (
-                <svg className="plane__stars" width={pw} height={ph}>
-                  {starList.map((s, i) => (
-                    <circle key={i} cx={s.x} cy={s.y} r={s.r * 0.8} fill="#cfd8ff" opacity={s.a * 0.55} />
-                  ))}
-                </svg>
-              )}
-            </div>
-
-            {/* Линии LED (днём — матовый рассеиватель) */}
-            {lay.led.map((l, i) => (
-              <div key={i} className="led" style={lineStyle(l, 0.05)} />
-            ))}
-
-            {/* Магнитные шины */}
-            {lay.tracks.map((t, i) => (
-              <div key={i} className="track" style={lineStyle(t, 0.045)} />
-            ))}
-            {trackSpots.map((m, i) =>
-              m.kind === 'spot' ? (
-                <div key={i} className="track-spot" style={dot(m.x, m.y, 0.065)} />
-              ) : (
-                <div key={i} className="track-line" style={{ ...dot(m.x, m.y, 0.03), height: m2(0.3), marginTop: -m2(0.15) }} />
-              ),
-            )}
-
-            {/* Точечные светильники */}
-            {lay.spots.map((s, i) => (
-              <div
-                key={i}
-                className={`spot spot--${cfg.spot === 'spotPrem' ? `prem-${cfg.spotStyle}` : cfg.spotStyle}`}
-                style={dot(s.x, s.y, cfg.spot === 'spotPrem' ? 0.095 : 0.085)}
-              >
-                <i />
+          {hasCeiling && (
+            <div className="plane" style={{ width: pw, height: ph, transform: geo.matrix }}>
+              <div className="plane__fabric" style={{ background: fabricColor }}>
+                {cfg.material === 'photoPrint' && <div className="plane__print" style={{ backgroundImage: `url(/textures/${cfg.print}.webp)` }} />}
+                {optics.sheen > 0 && <div className="plane__sheen" style={{ opacity: optics.sheen }} />}
+                {optics.grain > 0 && <div className="plane__grain" style={{ opacity: optics.grain }} />}
+                {cfg.material === 'starSky' && (
+                  <svg className="plane__stars" width={pw} height={ph}>
+                    {starList.map((s, i) => (
+                      <circle key={i} cx={s.x} cy={s.y} r={s.r * 0.8} fill="#cfd8ff" opacity={s.a * 0.55} />
+                    ))}
+                  </svg>
+                )}
               </div>
-            ))}
 
-            {/* Плафон (лампа standard) — накладной диск */}
-            {lay.lamp?.type === 'chandStd' && <div className="plafond" style={dot(lay.lamp.x, lay.lamp.y, 0.55)} />}
+              {/* Линии LED (днём — матовый рассеиватель) */}
+              {lay.led.map((l, i) => (
+                <div key={i} className="led" style={lineStyle(l, 0.05)} />
+              ))}
 
-            {/* Карниз */}
-            {win && cfg.curtain === 'stdCurtain' && (
-              <div className="curtain-rail" style={railStyle(win, pw, ph)} />
-            )}
-            {win && cfg.curtain !== 'stdCurtain' && (
-              <div className={`curtain-niche curtain-niche--${win}`} style={curtainRect(m2(0.17))} />
-            )}
+              {/* Магнитные шины */}
+              {lay.tracks.map((t, i) => (
+                <div key={i} className="track" style={lineStyle(t, 0.045)} />
+              ))}
+              {trackSpots.map((m, i) =>
+                m.kind === 'spot' ? (
+                  <div key={i} className="track-spot" style={dot(m.x, m.y, 0.065)} />
+                ) : (
+                  <div key={i} className="track-line" style={{ ...dot(m.x, m.y, 0.03), height: m2(0.3), marginTop: -m2(0.15) }} />
+                ),
+              )}
 
-            {/* Профиль по периметру */}
-            <div className={`profile profile--${cfg.profile}`} />
-          </div>
+              {/* Точечные светильники */}
+              {lay.spots.map((s, i) => (
+                <div
+                  key={i}
+                  className={`spot spot--${cfg.spot === 'spotPrem' ? `prem-${cfg.spotStyle}` : cfg.spotStyle}`}
+                  style={dot(s.x, s.y, cfg.spot === 'spotPrem' ? 0.095 : 0.085)}
+                >
+                  <i />
+                </div>
+              ))}
+
+              {/* Плафон (лампа standard) — накладной диск */}
+              {lay.lamp?.type === 'chandStd' && <div className="plafond" style={dot(lay.lamp.x, lay.lamp.y, 0.55)} />}
+
+              {/* Карниз */}
+              {win && cfg.curtain === 'stdCurtain' && <div className="curtain-rail" style={railStyle(win, pw, ph)} />}
+              {win && cfg.curtain !== 'stdCurtain' && <div className={`curtain-niche curtain-niche--${win}`} style={curtainRect(m2(0.17))} />}
+
+              {/* Профиль по периметру */}
+              <div className={`profile profile--${cfg.profile}`} />
+            </div>
+          )}
 
           {/* ===== Освещённость исходного потолка ===== */}
-          {shade && <img className="stage__shade" src={shade} alt="" width={W} height={H} />}
+          {hasCeiling && shade && <img className="stage__shade" src={shade} alt="" width={W} height={H} />}
 
           {/* ===== Отражения глянца и «передние» предметы ===== */}
           <svg className="stage__svg" viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true">
@@ -275,7 +274,7 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
               <image key={i} href={photo} width={W} height={H} clipPath={`url(#occ-${uid}-${i})`} />
             ))}
           </svg>
-          {night && <div className="stage__tint" style={{ background: L.tint }} />}
+          {night && <div className="stage__tint" style={{ background: power > 0 ? L.tint : '#c4cce0' }} />}
         </div>
 
         {/* ===== Излучающие элементы (вечер) — поверх затемнённой сцены ===== */}
@@ -302,7 +301,16 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
               {cfg.material === 'starSky' && (
                 <svg className="plane__stars" width={pw} height={ph}>
                   {starList.map((s, i) => (
-                    <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#fff" opacity={s.a} className={i % 5 === 0 ? 'twinkle' : undefined} style={{ animationDelay: `${(i % 13) * 0.37}s` }} />
+                    <circle
+                      key={i}
+                      cx={s.x}
+                      cy={s.y}
+                      r={s.r}
+                      fill="#fff"
+                      opacity={s.a}
+                      className={i % 5 === 0 ? 'twinkle' : undefined}
+                      style={{ animationDelay: `${(i % 13) * 0.37}s` }}
+                    />
                   ))}
                 </svg>
               )}
@@ -333,8 +341,28 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
               ))}
               {ledPx.map(([a, b, sc], i) => (
                 <g key={i}>
-                  <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={`rgb(${L.glow})`} strokeWidth={sc.sx * 0.35} strokeLinecap="round" opacity="0.28" filter={`url(#gl2-${uid})`} />
-                  <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={`rgb(${L.glow})`} strokeWidth={sc.sx * 0.06 + 2} strokeLinecap="round" opacity="0.7" filter={`url(#gl1-${uid})`} />
+                  <line
+                    x1={a[0]}
+                    y1={a[1]}
+                    x2={b[0]}
+                    y2={b[1]}
+                    stroke={`rgb(${L.glow})`}
+                    strokeWidth={sc.sx * 0.35}
+                    strokeLinecap="round"
+                    opacity="0.28"
+                    filter={`url(#gl2-${uid})`}
+                  />
+                  <line
+                    x1={a[0]}
+                    y1={a[1]}
+                    x2={b[0]}
+                    y2={b[1]}
+                    stroke={`rgb(${L.glow})`}
+                    strokeWidth={sc.sx * 0.06 + 2}
+                    strokeLinecap="round"
+                    opacity="0.7"
+                    filter={`url(#gl1-${uid})`}
+                  />
                 </g>
               ))}
               {cfg.profile === 'floating' &&
@@ -347,17 +375,35 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
                     </g>
                   )
                 })}
-              {win && cfg.curtain === 'hiddenLux' && (() => {
-                const [a, b] = edgeLine(win)
-                return (
-                  <g>
-                    <line x1={a[0]} y1={a[1] + 40} x2={b[0]} y2={b[1] + 40} stroke={`rgb(${L.glow})`} strokeWidth="110" opacity="0.3" filter={`url(#gl2-${uid})`} />
-                    <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={`rgb(${L.glow})`} strokeWidth="14" opacity="0.6" filter={`url(#gl1-${uid})`} />
-                  </g>
-                )
-              })()}
+              {win &&
+                cfg.curtain === 'hiddenLux' &&
+                (() => {
+                  const [a, b] = edgeLine(win)
+                  return (
+                    <g>
+                      <line
+                        x1={a[0]}
+                        y1={a[1] + 40}
+                        x2={b[0]}
+                        y2={b[1] + 40}
+                        stroke={`rgb(${L.glow})`}
+                        strokeWidth="110"
+                        opacity="0.3"
+                        filter={`url(#gl2-${uid})`}
+                      />
+                      <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={`rgb(${L.glow})`} strokeWidth="14" opacity="0.6" filter={`url(#gl1-${uid})`} />
+                    </g>
+                  )
+                })()}
               {lampPx && lay.lamp.type === 'chandStd' && (
-                <ellipse cx={lampPx.p[0]} cy={lampPx.p[1] + lampPx.sc.sx * 0.3} rx={lampPx.sc.sx * 1.6} ry={lampPx.sc.sx * 1.4} fill={`url(#halo-${uid})`} opacity="0.55" />
+                <ellipse
+                  cx={lampPx.p[0]}
+                  cy={lampPx.p[1] + lampPx.sc.sx * 0.3}
+                  rx={lampPx.sc.sx * 1.6}
+                  ry={lampPx.sc.sx * 1.4}
+                  fill={`url(#halo-${uid})`}
+                  opacity="0.55"
+                />
               )}
               {lampPx && lay.lamp.type === 'chandPrem' && <RingLamp lamp={lampPx} night glow={L.glow} uid={uid} />}
             </svg>
@@ -366,7 +412,14 @@ export default function CeilingView({ scene, cfg, before = null, onBeforeChange,
 
         {/* ===== Przed / Po ===== */}
         {before !== null && (
-          <img className="stage__before" src={photo} alt="" width={W} height={H} style={{ clipPath: `inset(0 ${((1 - before) * 100).toFixed(2)}% 0 0)` }} />
+          <img
+            className="stage__before"
+            src={scene.photo ?? roomOriginal(scene)}
+            alt=""
+            width={W}
+            height={H}
+            style={{ clipPath: `inset(0 ${((1 - before) * 100).toFixed(2)}% 0 0)` }}
+          />
         )}
       </div>
 
@@ -443,7 +496,17 @@ function RingLamp({ lamp, night, glow, uid }) {
       <g>
         {rings.map((g, i) => (
           <g key={i}>
-            <ellipse cx={x} cy={y + g.drop * s} rx={g.r * s} ry={g.r * s * flat} fill="none" stroke={`rgb(${glow})`} strokeWidth={s * 0.08} opacity="0.5" filter={`url(#gl1-${uid})`} />
+            <ellipse
+              cx={x}
+              cy={y + g.drop * s}
+              rx={g.r * s}
+              ry={g.r * s * flat}
+              fill="none"
+              stroke={`rgb(${glow})`}
+              strokeWidth={s * 0.08}
+              opacity="0.5"
+              filter={`url(#gl1-${uid})`}
+            />
             <ellipse cx={x} cy={y + g.drop * s} rx={g.r * s} ry={g.r * s * flat} fill="none" stroke="#fff8ee" strokeWidth={Math.max(1.5, s * 0.012)} />
           </g>
         ))}
@@ -460,7 +523,16 @@ function RingLamp({ lamp, night, glow, uid }) {
             <line x1={x - rx * 0.7} y1={y} x2={x - rx * 0.7} y2={cy} stroke="#3a3530" strokeWidth="0.8" opacity="0.7" />
             <line x1={x + rx * 0.7} y1={y} x2={x + rx * 0.7} y2={cy} stroke="#3a3530" strokeWidth="0.8" opacity="0.7" />
             <ellipse cx={x} cy={cy} rx={rx} ry={rx * flat} fill="none" stroke="#2a2522" strokeWidth={Math.max(2, s * 0.022)} />
-            <ellipse cx={x} cy={cy + Math.max(1, s * 0.008)} rx={rx} ry={rx * flat} fill="none" stroke="#e9e3d8" strokeWidth={Math.max(1, s * 0.008)} opacity="0.8" />
+            <ellipse
+              cx={x}
+              cy={cy + Math.max(1, s * 0.008)}
+              rx={rx}
+              ry={rx * flat}
+              fill="none"
+              stroke="#e9e3d8"
+              strokeWidth={Math.max(1, s * 0.008)}
+              opacity="0.8"
+            />
           </g>
         )
       })}
